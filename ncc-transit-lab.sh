@@ -40,11 +40,14 @@ create_vpn_pair() {
   LOCAL_GATEWAY=$1
   REMOTE_GATEWAY=$2
   LOCAL_ROUTER=$3
-  REMOTE_ROUTER=$4
-  REGION=$5
-  PREFIX=$6
-  LOCAL_ASN=$7
-  REMOTE_ASN=$8
+  REGION=$4
+  PREFIX=$5
+  LOCAL_ASN=$6
+  REMOTE_ASN=$7
+  IP1=$8
+  IP2=$9
+  IP3=${10}
+  IP4=${11}
 
   gcloud compute vpn-tunnels create $PREFIX-tu1 \
     --region=$REGION \
@@ -56,8 +59,8 @@ create_vpn_pair() {
     --router=$LOCAL_ROUTER \
     --bgp-peer-name=${PREFIX}-bgp1 \
     --peer-asn=$REMOTE_ASN \
-    --router-ip-address=169.254.1.1 \
-    --peer-ip-address=169.254.1.2
+    --router-ip-address=$IP1 \
+    --peer-ip-address=$IP2
 
   gcloud compute vpn-tunnels create $PREFIX-tu2 \
     --region=$REGION \
@@ -69,21 +72,22 @@ create_vpn_pair() {
     --router=$LOCAL_ROUTER \
     --bgp-peer-name=${PREFIX}-bgp2 \
     --peer-asn=$REMOTE_ASN \
-    --router-ip-address=169.254.1.5 \
-    --peer-ip-address=169.254.1.6
+    --router-ip-address=$IP3 \
+    --peer-ip-address=$IP4
 }
 
-# Create VPN tunnels and BGP sessions
-create_vpn_pair vpc-transit-gw1-use4 vpc-a-gw1-use4 cr-vpc-transit-use4-1 cr-vpc-a-use4-1 $REGION1 transit-to-vpc-a 65000 65001
-create_vpn_pair vpc-a-gw1-use4 vpc-transit-gw1-use4 cr-vpc-a-use4-1 cr-vpc-transit-use4-1 $REGION1 vpc-a-to-transit 65001 65000
+# Create VPN tunnels and BGP sessions for vpc-transit <-> vpc-a
+create_vpn_pair vpc-transit-gw1-use4 vpc-a-gw1-use4 cr-vpc-transit-use4-1 $REGION1 transit-to-vpc-a 65000 65001 169.254.1.1 169.254.1.2 169.254.1.5 169.254.1.6
+create_vpn_pair vpc-a-gw1-use4 vpc-transit-gw1-use4 cr-vpc-a-use4-1 $REGION1 vpc-a-to-transit 65001 65000 169.254.1.2 169.254.1.1 169.254.1.6 169.254.1.5
 
-create_vpn_pair vpc-transit-gw1-usw2 vpc-b-gw1-usw2 cr-vpc-transit-usw2-1 cr-vpc-b-usw2-1 $REGION2 transit-to-vpc-b 65000 65002
-create_vpn_pair vpc-b-gw1-usw2 vpc-transit-gw1-usw2 cr-vpc-b-usw2-1 cr-vpc-transit-usw2-1 $REGION2 vpc-b-to-transit 65002 65000
+# Create VPN tunnels and BGP sessions for vpc-transit <-> vpc-b
+create_vpn_pair vpc-transit-gw1-usw2 vpc-b-gw1-usw2 cr-vpc-transit-usw2-1 $REGION2 transit-to-vpc-b 65000 65002 169.254.1.9 169.254.1.10 169.254.1.13 169.254.1.14
+create_vpn_pair vpc-b-gw1-usw2 vpc-transit-gw1-usw2 cr-vpc-b-usw2-1 $REGION2 vpc-b-to-transit 65002 65000 169.254.1.10 169.254.1.9 169.254.1.14 169.254.1.13
 
 # Create NCC Hub
 gcloud alpha network-connectivity hubs create transit-hub --description="Transit_hub"
 
-# Create NCC Spokes (1 per tunnel)
+# Create NCC Spokes
 gcloud alpha network-connectivity spokes create bo1-tunnel1 \
   --hub=transit-hub --description="BO1-Tunnel1" \
   --vpn-tunnel=transit-to-vpc-a-tu1 \
@@ -127,4 +131,4 @@ gcloud compute instances create vpc-b-vm-1 \
   --image-family=debian-11 --image-project=debian-cloud \
   --boot-disk-size=10GB
 
-echo "✅ Setup complete. You can now SSH into vpc-a-vm-1 and ping the internal IP of vpc-b-vm-1 to test connectivity."
+echo "\n✅ Setup complete. You can now SSH into vpc-a-vm-1 and ping the internal IP of vpc-b-vm-1 to test connectivity."
