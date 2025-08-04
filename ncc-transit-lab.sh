@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # Set environment variables
-REGION1="europe-west1"
-REGION2="us-west1"
-ZONE1="europe-west1-b"
-ZONE2="us-west1-b"
-
+REGION1="us-central1"
+REGION2="us-east1"
+ZONE1="us-central1-a"
+ZONE2="us-east1-b"
 
 # Enable required API
 gcloud services enable networkconnectivity.googleapis.com
@@ -17,24 +16,24 @@ gcloud compute networks delete default --quiet
 gcloud compute networks create vpc-transit --bgp-routing-mode=global --subnet-mode=custom
 
 gcloud compute networks create vpc-a --bgp-routing-mode=regional --subnet-mode=custom
-gcloud compute networks subnets create vpc-a-sub1-use4 \
+gcloud compute networks subnets create vpc-a-sub1-usce \
   --network=vpc-a --region=$REGION1 --range=10.20.10.0/24
 
 gcloud compute networks create vpc-b --bgp-routing-mode=regional --subnet-mode=custom
-gcloud compute networks subnets create vpc-b-sub1-usw2 \
+gcloud compute networks subnets create vpc-b-sub1-use1 \
   --network=vpc-b --region=$REGION2 --range=10.20.20.0/24
 
 # Create Cloud Routers
-gcloud compute routers create cr-vpc-transit-use4-1 --network=vpc-transit --region=$REGION1 --asn=65000
-gcloud compute routers create cr-vpc-transit-usw2-1 --network=vpc-transit --region=$REGION2 --asn=65000
-gcloud compute routers create cr-vpc-a-use4-1 --network=vpc-a --region=$REGION1 --asn=65001
-gcloud compute routers create cr-vpc-b-usw2-1 --network=vpc-b --region=$REGION2 --asn=65002
+gcloud compute routers create cr-vpc-transit-usce-1 --network=vpc-transit --region=$REGION1 --asn=65000
+gcloud compute routers create cr-vpc-transit-use1-1 --network=vpc-transit --region=$REGION2 --asn=65000
+gcloud compute routers create cr-vpc-a-usce-1 --network=vpc-a --region=$REGION1 --asn=65001
+gcloud compute routers create cr-vpc-b-use1-1 --network=vpc-b --region=$REGION2 --asn=65002
 
 # Create VPN gateways
-gcloud compute vpn-gateways create vpc-transit-gw1-use4 --network=vpc-transit --region=$REGION1
-gcloud compute vpn-gateways create vpc-transit-gw1-usw2 --network=vpc-transit --region=$REGION2
-gcloud compute vpn-gateways create vpc-a-gw1-use4 --network=vpc-a --region=$REGION1
-gcloud compute vpn-gateways create vpc-b-gw1-usw2 --network=vpc-b --region=$REGION2
+gcloud compute vpn-gateways create vpc-transit-gw1-usce --network=vpc-transit --region=$REGION1
+gcloud compute vpn-gateways create vpc-transit-gw1-use1 --network=vpc-transit --region=$REGION2
+gcloud compute vpn-gateways create vpc-a-gw1-usce --network=vpc-a --region=$REGION1
+gcloud compute vpn-gateways create vpc-b-gw1-use1 --network=vpc-b --region=$REGION2
 
 # Helper function to create tunnels and BGP
 create_vpn_pair() {
@@ -78,17 +77,17 @@ create_vpn_pair() {
 }
 
 # Create VPN tunnels and BGP sessions for vpc-transit <-> vpc-a
-create_vpn_pair vpc-transit-gw1-use4 vpc-a-gw1-use4 cr-vpc-transit-use4-1 $REGION1 transit-to-vpc-a 65000 65001 169.254.1.1 169.254.1.2 169.254.1.5 169.254.1.6
-create_vpn_pair vpc-a-gw1-use4 vpc-transit-gw1-use4 cr-vpc-a-use4-1 $REGION1 vpc-a-to-transit 65001 65000 169.254.1.2 169.254.1.1 169.254.1.6 169.254.1.5
+create_vpn_pair vpc-transit-gw1-usce vpc-a-gw1-usce cr-vpc-transit-usce-1 $REGION1 transit-to-vpc-a 65000 65001 169.254.1.1 169.254.1.2 169.254.1.5 169.254.1.6
+create_vpn_pair vpc-a-gw1-usce vpc-transit-gw1-usce cr-vpc-a-usce-1 $REGION1 vpc-a-to-transit 65001 65000 169.254.1.2 169.254.1.1 169.254.1.6 169.254.1.5
 
 # Create VPN tunnels and BGP sessions for vpc-transit <-> vpc-b
-create_vpn_pair vpc-transit-gw1-usw2 vpc-b-gw1-usw2 cr-vpc-transit-usw2-1 $REGION2 transit-to-vpc-b 65000 65002 169.254.1.9 169.254.1.10 169.254.1.13 169.254.1.14
-create_vpn_pair vpc-b-gw1-usw2 vpc-transit-gw1-usw2 cr-vpc-b-usw2-1 $REGION2 vpc-b-to-transit 65002 65000 169.254.1.10 169.254.1.9 169.254.1.14 169.254.1.13
+create_vpn_pair vpc-transit-gw1-use1 vpc-b-gw1-use1 cr-vpc-transit-use1-1 $REGION2 transit-to-vpc-b 65000 65002 169.254.1.9 169.254.1.10 169.254.1.13 169.254.1.14
+create_vpn_pair vpc-b-gw1-use1 vpc-transit-gw1-use1 cr-vpc-b-use1-1 $REGION2 vpc-b-to-transit 65002 65000 169.254.1.10 169.254.1.9 169.254.1.14 169.254.1.13
 
 # Create NCC Hub
 gcloud alpha network-connectivity hubs create transit-hub --description="Transit_hub"
 
-# Create NCC Spokes
+# Create NCC Spokes (each per tunnel)
 gcloud alpha network-connectivity spokes create bo1-tunnel1 \
   --hub=transit-hub --description="BO1-Tunnel1" \
   --vpn-tunnel=transit-to-vpc-a-tu1 \
@@ -120,7 +119,7 @@ gcloud compute firewall-rules create fw-b \
 gcloud compute instances create vpc-a-vm-1 \
   --zone=$ZONE1 \
   --machine-type=e2-medium \
-  --subnet=vpc-a-sub1-use4 \
+  --subnet=vpc-a-sub1-usce \
   --image-family=debian-11 --image-project=debian-cloud \
   --boot-disk-size=10GB
 
@@ -128,9 +127,8 @@ gcloud compute instances create vpc-a-vm-1 \
 gcloud compute instances create vpc-b-vm-1 \
   --zone=$ZONE2 \
   --machine-type=e2-medium \
-  --subnet=vpc-b-sub1-usw2 \
+  --subnet=vpc-b-sub1-use1 \
   --image-family=debian-11 --image-project=debian-cloud \
   --boot-disk-size=10GB
 
-echo "\n✅ Setup complete. You can now SSH into vpc-a-vm-1 and ping the internal IP of vpc-b-vm-1 to test connectivity."
-
+echo -e "\n✅ Setup complete. You can now SSH into vpc-a-vm-1 and ping the internal IP of vpc-b-vm-1 to test connectivity."
