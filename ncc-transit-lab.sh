@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # Set environment variables
-REGION1="us-east4"
-REGION2="us-west2"
-ZONE1="us-east4-b"
-ZONE2="us-west2-a"
+REGION1="europe-west1"
+REGION2="us-west1"
+ZONE1="europe-west1-b"
+ZONE2="us-west1-b"
+
 
 # Enable required API
 gcloud services enable networkconnectivity.googleapis.com
@@ -132,3 +133,4 @@ gcloud compute instances create vpc-b-vm-1 \
   --boot-disk-size=10GB
 
 echo "\n✅ Setup complete. You can now SSH into vpc-a-vm-1 and ping the internal IP of vpc-b-vm-1 to test connectivity."
+
