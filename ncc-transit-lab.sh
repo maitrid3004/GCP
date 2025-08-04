@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Set environment variables
-REGION1="us-east4"        # Replace with actual Region 1
-REGION2="us-west2"        # Replace with actual Region 2
-ZONE1="us-east4-b"        # Replace with Zone for Region 1
-ZONE2="us-west2-a"        # Replace with Zone for Region 2
+REGION1="us-east4"
+REGION2="us-west2"
+ZONE1="us-east4-b"
+ZONE2="us-west2-a"
 
 # Enable required API
 gcloud services enable networkconnectivity.googleapis.com
@@ -83,15 +83,25 @@ create_vpn_pair vpc-b-gw1-usw2 vpc-transit-gw1-usw2 cr-vpc-b-usw2-1 cr-vpc-trans
 # Create NCC Hub
 gcloud alpha network-connectivity hubs create transit-hub --description="Transit_hub"
 
-# Create NCC Spokes
-gcloud alpha network-connectivity spokes create bo1 \
-  --hub=transit-hub --description="branch_office1" \
-  --vpn-tunnel=transit-to-vpc-a-tu1,transit-to-vpc-a-tu2 \
+# Create NCC Spokes (1 per tunnel)
+gcloud alpha network-connectivity spokes create bo1-tunnel1 \
+  --hub=transit-hub --description="BO1-Tunnel1" \
+  --vpn-tunnel=transit-to-vpc-a-tu1 \
   --region=$REGION1
 
-gcloud alpha network-connectivity spokes create bo2 \
-  --hub=transit-hub --description="branch_office2" \
-  --vpn-tunnel=transit-to-vpc-b-tu1,transit-to-vpc-b-tu2 \
+gcloud alpha network-connectivity spokes create bo1-tunnel2 \
+  --hub=transit-hub --description="BO1-Tunnel2" \
+  --vpn-tunnel=transit-to-vpc-a-tu2 \
+  --region=$REGION1
+
+gcloud alpha network-connectivity spokes create bo2-tunnel1 \
+  --hub=transit-hub --description="BO2-Tunnel1" \
+  --vpn-tunnel=transit-to-vpc-b-tu1 \
+  --region=$REGION2
+
+gcloud alpha network-connectivity spokes create bo2-tunnel2 \
+  --hub=transit-hub --description="BO2-Tunnel2" \
+  --vpn-tunnel=transit-to-vpc-b-tu2 \
   --region=$REGION2
 
 # Create firewall rules
